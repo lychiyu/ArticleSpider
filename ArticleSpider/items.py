@@ -4,7 +4,8 @@
 #
 # See documentation in:
 # https://doc.scrapy.org/en/latest/topics/items.html
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
 
 import scrapy
 from scrapy.loader import ItemLoader
@@ -50,15 +51,82 @@ class LagouJobItemLoader(ItemLoader):
     default_output_processor = TakeFirst()
 
 
+def get_before_datetime(days=0):
+    return datetime.now() - timedelta(days=days)
+
+
+def process_job_pub_time(value):
+    date_str = value.split(' ')[0].strip()
+    re_result = re.compile('(\d+)天前').search(date_str)
+    if re_result:
+        return get_before_datetime(int(re_result.group(1)))
+    if date_str in ('今天', '今日') or re.compile('\d+:\d+').match(date_str):
+        return get_before_datetime()
+    if date_str in ('昨天', '昨日'):
+        return get_before_datetime(1)
+    if date_str in ('前天', '前日'):
+        return get_before_datetime(2)
+    return datetime.strptime(date_str, '%Y-%m-%d')
+
+
 def remove_splash(value):
     # 去除文本中的斜杆/
     return value.replace('/', '').strip()
 
 
+def remove_enter(value):
+    # 去除回车换行符
+    return value.replace('\n', '').strip()
+
+
 def handle_jobaddr(value):
     addr_list = value.split('\n')
     addr_list = [item.strip() for item in addr_list if item.strip() != '查看地图']
-    return ''.join(addr_list)
+    return ''.join(addr_list).replace('-', '').replace(' ', '').strip()
+
+
+def get_min_degree_need(value):
+    if value == "学历不限":
+        return "不限"
+    return value[:2]
+
+
+def get_min_salary(value):
+    result = re.compile(r'(\d+)k.*?').match(value)
+    return 0 if not result else int(result.group(1))
+
+
+def get_max_salary(value):
+    result = re.compile(r'.*?-(\d+)k.*?').match(value)
+    if result:
+        return int(result.group(1))
+    result = re.compile(r'(\d+)k.*?以上').match(value)
+    if result:
+        return int(result.group(1))
+    return 100000
+
+
+def get_min_year(value):
+    year_str = value.replace('经验', '')
+    if year_str == "应届毕业生":
+        return -1
+    result = re.compile(r'(\d+)-.*?|(\d+)年.*?').match(year_str)
+    if result:
+        return int(result.group(1) if result.group(1) else result.group(2))
+    return 0
+
+
+def get_max_year(value):
+    year_str = value.replace('经验', '')
+    if year_str == "应届毕业生":
+        return -1
+    result = re.compile(r'.*?-(\d+)年').match(year_str)
+    if result:
+        return int(result.group(1))
+    result = re.compile(r'(\d+)年.*?以上.*?').match(year_str)
+    if result:
+        return 100
+    return 0
 
 
 class LagouJobItem(scrapy.Item):
@@ -66,33 +134,48 @@ class LagouJobItem(scrapy.Item):
     title = scrapy.Field()
     url = scrapy.Field()
     url_obj_id = scrapy.Field()
-    salary_min = scrapy.Field()
-    salary_max = scrapy.Field()
+    salary_min = scrapy.Field(
+        input_processor=MapCompose(get_min_salary),
+    )
+    salary_max = scrapy.Field(
+        input_processor=MapCompose(get_max_salary),
+    )
     job_city = scrapy.Field(
         input_processor=MapCompose(remove_splash),
     )
     year_min = scrapy.Field(
-        input_processor=MapCompose(remove_splash),
+        input_processor=MapCompose(remove_splash, get_min_year),
     )
     year_max = scrapy.Field(
-        input_processor=MapCompose(remove_splash),
+        input_processor=MapCompose(remove_splash, get_max_year),
     )
     degree_need = scrapy.Field(
-        input_processor=MapCompose(remove_splash),
+        input_processor=MapCompose(remove_splash, get_min_degree_need),
     )
     job_type = scrapy.Field()
     tags = scrapy.Field(
         input_processor=Join(','),
     )
-    pub_time = scrapy.Field()
+    pub_time = scrapy.Field(
+        input_processor=MapCompose(process_job_pub_time),
+    )
     advantage = scrapy.Field()
     desc = scrapy.Field(
-        input_processor=MapCompose(remove_tags),
+        input_processor=MapCompose(remove_tags, remove_enter),
     )
     job_address = scrapy.Field(
         input_processor=MapCompose(remove_tags, handle_jobaddr),
     )
     company_name = scrapy.Field()
+    company_dev = scrapy.Field(
+        input_processor=MapCompose(remove_splash),
+    )
+    company_scope = scrapy.Field(
+        input_processor=MapCompose(remove_splash),
+    )
+    company_domain = scrapy.Field(
+        input_processor=MapCompose(remove_splash),
+    )
     company_url = scrapy.Field()
     crawl_time = scrapy.Field()
     crawl_update = scrapy.Field()
