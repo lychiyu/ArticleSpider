@@ -9,6 +9,7 @@ import json
 
 import MySQLdb
 import MySQLdb.cursors
+import pymongo as pymongo
 
 from scrapy.pipelines.images import ImagesPipeline
 from scrapy.exporters import JsonItemExporter
@@ -69,6 +70,7 @@ class MysqlPipeline(object):
     """
     同步的mysql的操作
     """
+
     def __init__(self):
         self.conn = MySQLdb.connect('localhost', 'root', '1234', 'article_spider', charset='utf8', use_unicode=True)
         self.cursor = self.conn.cursor()
@@ -160,3 +162,17 @@ class MysqlTwistedPipeline(object):
 class ArticlespiderPipeline(object):
     def process_item(self, item, spider):
         return item
+
+
+class MongoDBPipeline(object):
+    def __init__(self):
+        # 链接数据库
+        self.client = pymongo.MongoClient(host='127.0.0.1', port=27017)
+        self.db = self.client['lagou']  # 获得数据库的句柄
+        self.coll = self.db['jobs']  # 获得collection的句柄
+
+    def process_item(self, item, spider):
+        jobItem = dict(item)  # 把item转化成字典形式
+        if self.coll.find({'id': jobItem['url_obj_id']}).count() == 0:
+            self.coll.insert(jobItem)  # 向数据库插入一条记录
+        return item  # 会在控制台输出原item数据，可以选择不写
