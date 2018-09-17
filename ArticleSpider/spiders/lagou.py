@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
+
 import scrapy
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
+
+from ArticleSpider.items import LagouJobItemLoader, LagouJobItem
+from ArticleSpider.utils.common import get_md5
 
 
 class LagouSpider(CrawlSpider):
@@ -23,8 +28,27 @@ class LagouSpider(CrawlSpider):
     }
 
     def parse_job(self, response):
-        i = {}
-        return i
+        item_loader = LagouJobItemLoader(item=LagouJobItem(), response=response)
+        item_loader.add_css('title', '.job-name::attr(title)')
+        item_loader.add_value('url', response.url)
+        item_loader.add_value('url_obj_id', get_md5(response.url))
+        item_loader.add_css('salary_min', '.job_request .salary::text')
+        item_loader.add_css('salary_max', '.job_request .salary::text')
+        item_loader.add_xpath('job_city', '//dd[@class="job_request"]/p/span[2]/text()')
+        item_loader.add_xpath('year_min', '//dd[@class="job_request"]/p/span[3]/text()')
+        item_loader.add_xpath('year_max', '//dd[@class="job_request"]/p/span[3]/text()')
+        item_loader.add_xpath('degree_need', '//dd[@class="job_request"]/p/span[4]/text()')
+        item_loader.add_xpath('job_type', '//dd[@class="job_request"]/p/span[5]/text()')
+        item_loader.add_css('tags', '.position-label li::text')
+        item_loader.add_css('pub_time', '.publish_time::text')
+        item_loader.add_css('advantage', '.job-advantage p::text')
+        item_loader.add_css('desc', '.job_bt div')
+        item_loader.add_css('job_address', '.work_addr')
+        item_loader.add_css('company_name', '.job_company dt a img::attr(alt)')
+        item_loader.add_css('company_url', '.job_company dt a::attr(href)')
+        item_loader.add_value('crawl_time', datetime.now())
+        job_item = item_loader.load_item()
+        return job_item
 
     def start_requests(self):
         """

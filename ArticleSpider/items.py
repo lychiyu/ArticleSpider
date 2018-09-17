@@ -7,7 +7,9 @@
 from datetime import datetime
 
 import scrapy
-from scrapy.loader.processors import MapCompose, TakeFirst
+from scrapy.loader import ItemLoader
+from scrapy.loader.processors import MapCompose, TakeFirst, Join
+from w3lib.html import remove_tags
 
 
 class ArticlespiderItem(scrapy.Item):
@@ -42,3 +44,55 @@ class JobboleArticleItem(scrapy.Item):
     content = scrapy.Field()
     img_url = scrapy.Field()
     img_file_path = scrapy.Field()
+
+
+class LagouJobItemLoader(ItemLoader):
+    default_output_processor = TakeFirst()
+
+
+def remove_splash(value):
+    # 去除文本中的斜杆/
+    return value.replace('/', '').strip()
+
+
+def handle_jobaddr(value):
+    addr_list = value.split('\n')
+    addr_list = [item.strip() for item in addr_list if item.strip() != '查看地图']
+    return ''.join(addr_list)
+
+
+class LagouJobItem(scrapy.Item):
+    # 拉勾网职位信息item
+    title = scrapy.Field()
+    url = scrapy.Field()
+    url_obj_id = scrapy.Field()
+    salary_min = scrapy.Field()
+    salary_max = scrapy.Field()
+    job_city = scrapy.Field(
+        input_processor=MapCompose(remove_splash),
+    )
+    year_min = scrapy.Field(
+        input_processor=MapCompose(remove_splash),
+    )
+    year_max = scrapy.Field(
+        input_processor=MapCompose(remove_splash),
+    )
+    degree_need = scrapy.Field(
+        input_processor=MapCompose(remove_splash),
+    )
+    job_type = scrapy.Field()
+    tags = scrapy.Field(
+        input_processor=Join(','),
+    )
+    pub_time = scrapy.Field()
+    advantage = scrapy.Field()
+    desc = scrapy.Field(
+        input_processor=MapCompose(remove_tags),
+    )
+    job_address = scrapy.Field(
+        input_processor=MapCompose(remove_tags, handle_jobaddr),
+    )
+    company_name = scrapy.Field()
+    company_url = scrapy.Field()
+    crawl_time = scrapy.Field()
+    crawl_update = scrapy.Field()
