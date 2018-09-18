@@ -52,9 +52,10 @@ ROBOTSTXT_OBEY = False
 
 # Enable or disable downloader middlewares
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
-# DOWNLOADER_MIDDLEWARES = {
-#    'ArticleSpider.middlewares.ArticlespiderDownloaderMiddleware': 543,
-# }
+DOWNLOADER_MIDDLEWARES = {
+   'ArticleSpider.middlewares.ArticlespiderDownloaderMiddleware': 543,
+   'ArticleSpider.middlewares.RandomUserAgentMiddlware': 543,
+}
 
 # Enable or disable extensions
 # See https://doc.scrapy.org/en/latest/topics/extensions.html
@@ -116,3 +117,10 @@ MYSQL_HOST = 'localhost'
 MYSQL_DB = 'article_spider'
 MYSQL_USER = 'root'
 MYSQL_PASSWORD = '1234'
+
+# ==============================================================================
+# UESR_AGENT
+# ==============================================================================
+UESR_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.81 Safari/537.36"
+UESR_AGENT_LIST = []
+RANDOM_UA_TYPE = "chrome"
